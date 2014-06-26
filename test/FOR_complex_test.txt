@@ -1,0 +1,19 @@
+%%the beginning of an test data for Micro/Ex
+Program FOR_complex_test
+
+Begin 
+ declare I,J as integer;
+ declare A,B,C,D, LLL[100] as float;
+ 
+ J:= 2;
+
+FOR (I:=1 TO 100*J+6 STEP 5)
+   A:=-LLL[I]+B*D-C;
+ENDFOR
+
+FOR (I:=2*J-4 DOWNTO 5 STEP 4)
+   A:=-LLL[I]+B*D-C;
+ENDFOR
+
+
+End

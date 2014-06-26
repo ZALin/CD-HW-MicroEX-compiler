@@ -88,6 +88,7 @@ var_list: var_list ',' ID '[' expression ']'
             }
             
         }
+        
     | ID '[' expression ']' 
         {
             $$ = new symtab();
@@ -101,11 +102,13 @@ var_list: var_list ',' ID '[' expression ']'
             }
             
         }
+        
     | var_list ',' ID
         {
             $$ = new symtab();
             $$->name = strdup( (string($1->name) + "," + string($3->name)).data() );
         }
+        
     | ID  
     ;    
     
@@ -114,6 +117,7 @@ type: INTEGER  { $$ = $1; }
     | FLOAT   { $$ = $1; }
     ;    
 
+    
 assign_stmt:  assigned_var ASSIGN expression   
                 {
                     symtab* pre_ID = look_for_symbol($1->name, $1->type);
@@ -134,10 +138,12 @@ assign_stmt:  assigned_var ASSIGN expression
                 }
     ;
 
+    
 assigned_var : ID 
                 {
                     $$ = look_for_symbol($1->name, "");
                 }
+                
     |   ID '[' expression ']'
                 {
                     $$ = new symtab();
@@ -152,6 +158,9 @@ assigned_var : ID
                     }
                     
                 }
+                
+
+                
 loop_stmt : forloop forloop_type expression ')' stmt_list ENDFOR
                 {
                     if( strcmp($2->name, "TO") == 0) 
@@ -184,6 +193,44 @@ loop_stmt : forloop forloop_type expression ')' stmt_list ENDFOR
                         result.push_back("\tJG lb&" + string($1->type));
                     }
                 }
+                
+    | forloop forloop_type expression STEP expression ')' stmt_list ENDFOR
+                {
+                    ++temp_variable_counter;
+                    look_for_symbol( string("T&"+IntToString(temp_variable_counter)).data() , (const char*)$2->type);
+                    
+                    // $1->name:assigned_var(in assign_stmt)  
+                    // $1->type: lb&jump_counter : 
+                    if( strcmp($2->name, "TO") == 0 ) 
+                    {
+                        result.push_back("\tI_ADD " + string($1->name) + "," + string($5->name) + ",T&" + IntToString(temp_variable_counter) ); // + STEP
+                        result.push_back("\tI_STORE T&" + IntToString(temp_variable_counter) + "," + string($1->name)); 
+                    }
+                    else if( strcmp($2->name, "DOWNTO") == 0) 
+                    {
+                        result.push_back("\tI_SUB " + string($1->name) + "," + string($5->name) + ",T&" + IntToString(temp_variable_counter) ); // - STEP
+                        result.push_back("\tI_STORE T&" + IntToString(temp_variable_counter) + "," + string($1->name));
+                    }
+                    
+                    // CMP fixed_assigned_var , $3 expression_result
+                    if( strcmp( look_for_symbol($1->name, "")->type , "Integer" ) == 0)
+                    {
+                        result.push_back("\tI_CMP " + string($1->name) + "," + string($3->name));
+                    }
+                    else if( strcmp( look_for_symbol($1->name, "")->type , "Float" ) == 0)
+                    {
+                        result.push_back("\tF_CMP " + string($1->name) + "," + string($3->name));
+                    }
+                    
+                    if( strcmp($2->name, "TO") == 0 )
+                    {
+                        result.push_back("\tJL lb&" + string($1->type));
+                    }
+                    else if( strcmp($2->name, "DOWNTO" ) == 0 )
+                    {
+                        result.push_back("\tJG lb&" + string($1->type));
+                    }
+                }
     ;
 
 
@@ -203,6 +250,7 @@ forloop_type: TO
                 $$ = $1; 
                 $$->name = strdup( "TO" );
             }
+            
 	| DOWNTO 
             {
                 $$ = $1; 
@@ -231,6 +279,7 @@ expression: expression '+' term
                 $$->name = strdup( string(string("T&")+IntToString(temp_variable_counter)).data() );        
                 $$->type = $1->type;
             }
+            
     |    expression '-' term 
             {
                 symtab* pre_ID = look_for_symbol($1->name, $1->type);
@@ -252,6 +301,7 @@ expression: expression '+' term
                 $$->name = strdup( string(string("T&")+IntToString(temp_variable_counter)).data() );        
                 $$->type = $1->type;
             }
+            
     |    term 
             {
                 $$ = $1; 
@@ -279,6 +329,7 @@ term : term '*' factor
             $$->name = strdup( string(string("T&")+IntToString(temp_variable_counter)).data() );        
             $$->type = $1->type;
         }
+        
     | term '/' factor
         {
             symtab* pre_ID = look_for_symbol($1->name, $1->type);
@@ -300,6 +351,7 @@ term : term '*' factor
             $$->name = strdup( string(string("T&")+IntToString(temp_variable_counter)).data() );        
             $$->type = $1->type;
         }
+        
     | factor 
         {
             $$ = $1;
@@ -315,14 +367,17 @@ factor: '-' factor
                 $$->name = strdup( string(string("T&")+IntToString(temp_variable_counter)).data() );
                 $$->type = $2->type;
             }
+            
     |    '(' expression ')'    
             { 
                 $$ = $2; 
             }
+            
     |    ID  
             {
                 $$ = look_for_symbol($1->name, "");
             }
+            
     |	ID '[' expression ']' 
             { 
                 /*if( strcmp($3->type,"Integer") == 0 )
@@ -338,10 +393,12 @@ factor: '-' factor
                 $$->name = strdup( (string($1->name)+"["+string($3->name)+"]").data() );
                 $$->type = look_for_symbol($1->name, "")->type; 
             }
+            
     |    INT_LITERAL 
             {
                 $$ = look_for_symbol($1->name, "Integer");
             }
+            
     |    FLOAT_LITERAL     
             {
                 $$ = look_for_symbol($1->name, "Float");
