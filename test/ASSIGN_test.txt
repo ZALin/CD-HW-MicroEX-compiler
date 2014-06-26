@@ -1,5 +1,5 @@
 %%the beginning of an test data for Micro/Ex
-Program testP
+Program ASSIGN_test
 
 Begin 
  declare A,B,C,D,LLL[100] as integer;

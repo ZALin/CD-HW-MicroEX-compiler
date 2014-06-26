@@ -36,8 +36,8 @@ Digit [0-9]
 [Ff][Ll][Oo][Aa][Tt]    {yylval.opterminal = look_for_symbol("Float",""); return FLOAT;} 
 ":=" {return ASSIGN;}
 "!=" {return NE;}
-">" {return JL;}
-"<" {return JG;}
+">" {return G;}
+"<" {return L;}
 ">=" {return GE;}
 "<=" {return LE;}
 "==" {return EQ;}

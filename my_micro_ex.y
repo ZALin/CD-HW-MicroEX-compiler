@@ -20,6 +20,7 @@ symtab SYMBOL_TABLE[1000];
 symtab *look_for_symbol(const char *str, const char *str2);
 int temp_variable_counter = 0;
 string IntToString(int &i);
+int jump_counter = 0; 
 %}
 
 
@@ -27,9 +28,9 @@ string IntToString(int &i);
     struct symtab *symp;
     struct symtab *opterminal;
 }
-%token<opterminal> PROGRAM BEGIN_T END IF THEN ELSE ENDIF FOR TO DOWNTO ENDFOR STEP WHILE ENDWHILE DECLARE AS INTEGER FLOAT ASSIGN GE NE EQ LE JL JG   
+%token<opterminal> PROGRAM BEGIN_T END IF THEN ELSE ENDIF FOR TO DOWNTO ENDFOR STEP WHILE ENDWHILE DECLARE AS INTEGER FLOAT ASSIGN GE NE EQ LE G L   
 %token<symp> ID INT_LITERAL FLOAT_LITERAL STRING_LITERAL EXP_FLOAT_LITERAL
-%type<symp> declare_stmt var_list type expression term factor assign_stmt assigned_var
+%type<symp> declare_stmt var_list type expression term factor assign_stmt assigned_var loop_stmt forloop forloop_type
 
 
 
@@ -51,7 +52,8 @@ stmt_list: stmt
     ;
 
 stmt: declare_stmt ';'
-    | assign_stmt ';'    
+    | assign_stmt ';' 
+    | loop_stmt 
     ;
 
 declare_stmt: DECLARE var_list AS type 
@@ -150,8 +152,65 @@ assigned_var : ID
                     }
                     
                 }
+loop_stmt : forloop forloop_type expression ')' stmt_list ENDFOR
+                {
+                    if( strcmp($2->name, "TO") == 0) 
+                    {
+                        result.push_back("\tINC " + string($1->name));
+                    }
+                    else if( strcmp($2->name, "DOWNTO") == 0 )
+                    {
+                        result.push_back("\tDEC " + string($1->name));
+                    }
+                    
+                    // $1->name:assigned_var(in assign_stmt)  
+                    // $1->type: lb& jump_counter : 
+                    // CMP assigned_var->name , expression_result
+                    if( strcmp( look_for_symbol($1->name, "")->type , "Integer" ) == 0 ) 
+                    {
+                        result.push_back("\tI_CMP " + string($1->name) + "," + string($3->name));
+                    }
+                    else if( strcmp( look_for_symbol($1->name, "")->type , "Float" ) == 0 )
+                    {
+                        result.push_back("\tF_CMP " + string($1->name) + "," + string($3->name));
+                    }
+
+                    if( strcmp($2->name, "TO") == 0 ) // INC => lower than => do
+                    {
+                        result.push_back("\tJL lb&" + string($1->type));
+                    }
+                    else if( strcmp($2->name, "DOWNTO") == 0 ) // DEC => greater than => do
+                    {
+                        result.push_back("\tJG lb&" + string($1->type));
+                    }
+                }
+    ;
+
+
+                
+forloop : FOR '(' assign_stmt
+            {
+                ++jump_counter;
+                result.push_back("lb&" + IntToString(jump_counter) + ":");
+                $$ = new symtab();
+                $$->name = $3->name;
+                $$->type = strdup( IntToString(jump_counter).data() );
+            }
+    ;
+
+forloop_type: TO 
+            {
+                $$ = $1; 
+                $$->name = strdup( "TO" );
+            }
+	| DOWNTO 
+            {
+                $$ = $1; 
+                $$->name = strdup( "DOWNTO" );
+            }
+	;
     
-expression:    expression '+' term 
+expression: expression '+' term 
             {
                 symtab* pre_ID = look_for_symbol($1->name, $1->type);
                 ++temp_variable_counter;
@@ -263,6 +322,21 @@ factor: '-' factor
     |    ID  
             {
                 $$ = look_for_symbol($1->name, "");
+            }
+    |	ID '[' expression ']' 
+            { 
+                /*if( strcmp($3->type,"Integer") == 0 )
+                    {
+                        $$->type = look_for_symbol($1->name, "")->type;
+                        $$->name = strdup( (string($1->name)+"["+string($3->name)+"]").data() );
+                    }
+                    else
+                    {
+                        yyerror("array[N], N only accept a Integer");
+                    }*/
+                $$ = new symtab(); 
+                $$->name = strdup( (string($1->name)+"["+string($3->name)+"]").data() );
+                $$->type = look_for_symbol($1->name, "")->type; 
             }
     |    INT_LITERAL 
             {

@@ -1,5 +1,5 @@
 %%the beginning of an test data for Micro/Ex
-Program testP
+Program DEC_test
 
 Begin 
  declare I as integer;
