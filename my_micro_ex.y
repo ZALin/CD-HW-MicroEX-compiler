@@ -380,18 +380,18 @@ factor: '-' factor
             
     |	ID '[' expression ']' 
             { 
-                /*if( strcmp($3->type,"Integer") == 0 )
-                    {
-                        $$->type = look_for_symbol($1->name, "")->type;
-                        $$->name = strdup( (string($1->name)+"["+string($3->name)+"]").data() );
-                    }
-                    else
-                    {
-                        yyerror("array[N], N only accept a Integer");
-                    }*/
                 $$ = new symtab(); 
-                $$->name = strdup( (string($1->name)+"["+string($3->name)+"]").data() );
-                $$->type = look_for_symbol($1->name, "")->type; 
+                if( strcmp($3->type,"Integer") == 0 )
+                {
+                    $$->name = strdup( (string($1->name)+"["+string($3->name)+"]").data() );
+                    $$->type = look_for_symbol($1->name, "")->type; 
+                }
+                else
+                {
+                    yyerror("array[N], N only accept a Integer");
+                }
+                
+                
             }
             
     |    INT_LITERAL 
