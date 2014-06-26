@@ -18,7 +18,8 @@ extern int yylex(void);
 deque <string> result; // Result
 symtab SYMBOL_TABLE[1000];
 symtab *look_for_symbol(const char *str, const char *str2);
-
+int temp_variable_counter = 0;
+string IntToString(int &i);
 %}
 
 
@@ -112,22 +113,128 @@ var_list: var_list ',' ID '[' expression ']'
 type: INTEGER  { $$ = $1; }
 	| FLOAT   { $$ = $1; }
 	;	
-
+    
 expression:	expression '+' term 
+            {
+                symtab* id = look_for_symbol($1->name,$1->type);
+                ++temp_variable_counter;
+                look_for_symbol( string("T&"+IntToString(temp_variable_counter)).data(), (const char*)$1->type);
+                if( strcmp(id->type,"Integer") == 0 ) 
+                {
+                    result.push_back("\tI_ADD " + string($1->name) + "," + string($3->name) + ",T&" + IntToString(temp_variable_counter));
+                }
+                else if( strcmp(id->type,"Float") == 0 ) 
+                {
+                    result.push_back("\tF_ADD " + string($1->name) + "," + string($3->name) + ",T&" + IntToString(temp_variable_counter));
+                }
+                else 
+                {
+                    result.push_back("\tI_ADD " + string($1->name) + "," + string($3->name) + ",T&" + IntToString(temp_variable_counter));
+                }
+                $$ = new symtab();
+                $$->name = strdup( string(string("T&")+IntToString(temp_variable_counter)).data() );		
+                $$->type = $1->type;
+            }
 	|	expression '-' term 
-	|	term  /* $$ = $1 */ 
+            {
+                symtab* id = look_for_symbol($1->name,$1->type);
+                ++temp_variable_counter;
+                look_for_symbol( string("T&"+IntToString(temp_variable_counter)).data(), (const char*)$1->type);
+                if( strcmp(id->type,"Integer") == 0 )
+                {
+                    result.push_back("\tI_SUB " + string($1->name) + "," + string($3->name) + ",T&" + IntToString(temp_variable_counter));
+                }
+                else if( strcmp(id->type,"Float") == 0 )
+                {
+                    result.push_back("\tF_SUB " + string($1->name) + "," + string($3->name) + ",T&" + IntToString(temp_variable_counter));
+                }
+                else
+                {
+                    result.push_back("\tI_SUB " + string($1->name) + "," + string($3->name) + ",T&" + IntToString(temp_variable_counter));
+                }
+                $$ = new symtab();
+                $$->name = strdup( string(string("T&")+IntToString(temp_variable_counter)).data() );		
+                $$->type = $1->type;
+            }
+	|	term 
+            {
+                $$ = $1; 
+            }
 	;
 
 term : term '*' factor 
+        {
+            symtab* id = look_for_symbol($1->name,$1->type);
+			++temp_variable_counter;
+			look_for_symbol( string("T&"+IntToString(temp_variable_counter)).data() , (const char*)$1->type);
+			if( strcmp(id->type,"Integer") == 0 ) 
+            {
+				result.push_back("\tI_MUL " + string($1->name) + "," + string($3->name) + ",T&" + IntToString(temp_variable_counter));
+			}
+			else if( strcmp(id->type,"Float") == 0 ) 
+            {
+				result.push_back("\tF_MUL " + string($1->name) + "," + string($3->name) + ",T&" + IntToString(temp_variable_counter));
+			}
+			else 
+            {
+				result.push_back("\tI_MUL " + string($1->name) + "," + string($3->name) + ",T&" + IntToString(temp_variable_counter));
+			}
+			$$ = new symtab();
+			$$->name = strdup( string(string("T&")+IntToString(temp_variable_counter)).data() );		
+			$$->type = $1->type;
+        }
 	| term '/' factor
-	| factor /* $$ = $1 */
+        {
+            symtab* id = look_for_symbol($1->name,$1->type);
+			++temp_variable_counter;
+			look_for_symbol(string("T&"+IntToString(temp_variable_counter)).data(), (const char*)$1->type);
+			if( strcmp(id->type,"Integer") == 0 ) 
+            {
+				result.push_back("\tI_DIV " + string($1->name) + "," + string($3->name) + ",T&" + IntToString(temp_variable_counter));
+			}
+			else if( strcmp(id->type,"Float") == 0  )
+            {
+				result.push_back("\tF_DIV " + string($1->name) + "," + string($3->name) + ",T&" + IntToString(temp_variable_counter));
+			}
+			else 
+            {
+				result.push_back("\tI_DIV " + string($1->name) + "," + string($3->name) + ",T&" + IntToString(temp_variable_counter));
+			}
+			$$ = new symtab();
+			$$->name = strdup( string(string("T&")+IntToString(temp_variable_counter)).data() );		
+			$$->type = $1->type;
+        }
+	| factor 
+        {
+            $$ = $1;
+        }
 	;
 
 factor: '-' factor 
-	|	'(' expression ')'	{ $$ = $2; }
-	|	ID    
+            {
+                ++temp_variable_counter;
+                look_for_symbol( string("T&"+IntToString(temp_variable_counter)).data() , (const char*)$2->type);
+                result.push_back("\tUMINUS " + string($2->name) + ",T&" + IntToString(temp_variable_counter));
+                $$ = new symtab(); 
+                $$->name = strdup( string(string("T&")+IntToString(temp_variable_counter)).data() );
+                $$->type = $2->type;
+            }
+	|	'(' expression ')'	
+            { 
+                $$ = $2; 
+            }
+	|	ID  
+            {
+                $$ = look_for_symbol($1->name,"");
+            }
 	|	INT_LITERAL 
+            {
+                $$ = look_for_symbol($1->name,"Integer");
+            }
 	|	FLOAT_LITERAL 	
+            {
+                $$ = look_for_symbol($1->name,"Float");
+            }
 	;
 	
 %%
@@ -171,4 +278,12 @@ symtab *look_for_symbol(const char *str, const char *str2)
 	}
 	yyerror("Symbol can not found!");
 	exit(1);
+}
+
+string IntToString(int &i)
+{
+    string s;
+	stringstream ss(s);
+	ss << i;
+	return ss.str();
 }
