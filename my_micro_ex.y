@@ -21,6 +21,7 @@ symtab *look_for_symbol(const char *str, const char *str2);
 int temp_variable_counter = 0;
 string IntToString(int &i);
 int jump_counter = 0; 
+deque <int> tmp_jump_counter;
 %}
 
 
@@ -30,7 +31,7 @@ int jump_counter = 0;
 }
 %token<opterminal> PROGRAM BEGIN_T END IF THEN ELSE ENDIF FOR TO DOWNTO ENDFOR STEP WHILE ENDWHILE DECLARE AS INTEGER FLOAT ASSIGN GE NE EQ LE G L   
 %token<symp> ID INT_LITERAL FLOAT_LITERAL STRING_LITERAL EXP_FLOAT_LITERAL
-%type<symp> declare_stmt var_list type expression term factor assign_stmt assigned_var loop_stmt forloop forloop_type
+%type<symp> declare_stmt var_list type expression term factor assign_stmt assigned_var loop_stmt forloop forloop_type if_stmt bool_exp bool_op else_t
 
 
 
@@ -54,6 +55,7 @@ stmt_list: stmt
 stmt: declare_stmt ';'
     | assign_stmt ';' 
     | loop_stmt 
+    | if_stmt
     ;
 
 declare_stmt: DECLARE var_list AS type 
@@ -257,6 +259,96 @@ forloop_type: TO
                 $$->name = strdup( "DOWNTO" );
             }
 	;
+
+
+if_stmt : IF '(' bool_exp ')' THEN stmt_list else_t stmt_list ENDIF 
+            {
+                ++jump_counter;
+                result.push_back("lb&" + string($7->name) + ":");
+            }
+	| IF '(' bool_exp ')' THEN stmt_list ENDIF 
+            {
+                result.push_back("lb&" + string($3->name) + ":");
+                tmp_jump_counter.pop_front();
+            }
+	;
+
+
+    
+else_t: ELSE
+        {
+			++jump_counter;
+			result.push_back("\tJ lb&" + IntToString(jump_counter));
+			$$ = new symtab();
+			$$->name = strdup(IntToString(jump_counter).data());
+			result.push_back("lb&" + IntToString(tmp_jump_counter.front()) + ": ");
+			tmp_jump_counter.pop_front();
+		}
+	;
+
+
+bool_exp: expression bool_op expression
+            {
+                symtab* left_ID = look_for_symbol($1->name, $1->type);
+                ++jump_counter;
+                if( strcmp(left_ID->type, "Integer") == 0 ) 
+                {
+                    result.push_back("\tI_CMP " + string($1->name) + "," + string($3->name));
+                }
+                else if( strcmp(left_ID->type, "Float") == 0 )
+                {
+                    result.push_back("\tF_CMP " + string($1->name) + "," + string($3->name));
+                }
+                else 
+                {
+                    result.push_back("\tI_CMP " + string($1->name) + "," + string($3->name));
+                }
+                //exit or else
+                result.push_back("\t" + string($2->name) + " lb&" + IntToString(jump_counter));
+                $$ = new symtab();
+                $$->name = strdup(IntToString(jump_counter).data());
+                tmp_jump_counter.push_front(jump_counter);
+            }
+	;
+
+
+bool_op: GE 
+        {
+            $$ = new symtab(); 
+            $$->name = (char *)"JL";
+        }
+
+	| LE 
+        {
+            $$ = new symtab(); 
+            $$->name = (char *)"JG";
+        }
+	
+	| G 
+        {
+            $$ = new symtab();
+            $$->name = (char *)"JLE";
+        }
+	
+	| L 
+        {
+            $$ = new symtab(); 
+            $$->name = (char *)"JGE";
+        }	
+
+	| EQ 
+        {
+			$$ = new symtab(); 
+			$$->name = (char *)"JNE";
+		}	
+
+	| NE 
+        {
+			$$ = new symtab(); 
+			$$->name = (char *)"JE";
+		}
+	;
+
     
 expression: expression '+' term 
             {
@@ -409,10 +501,14 @@ factor: '-' factor
 
 int main() {
     yyparse();
-    for (int i = 0; i < result.size(); i++) 
+    for(int i=0 ; i < result.size() ; ++i) 
     {
         cout << result.at(i) << endl;
     }
+    for(int i=1 ; i <= temp_variable_counter ; ++i) 
+    {
+		cout<< "\tDeclare T&" << i << ", " << look_for_symbol( string("T&"+IntToString(i)).data(), "")->type << endl;
+	}
     return 0;
 }    
 
