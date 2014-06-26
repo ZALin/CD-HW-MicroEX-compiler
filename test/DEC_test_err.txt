@@ -1,0 +1,8 @@
+%%the beginning of an test data for Micro/Ex
+Program testP
+
+Begin 
+ declare I as integer;
+ declare LLL2[0.5] as float;
+
+End

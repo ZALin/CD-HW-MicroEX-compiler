@@ -3,7 +3,7 @@
 #include <sstream>
 #include <cstring>
 #include <deque>
-
+int numline = 1;
 struct symtab {
 	char *name;  /* sometime as value */
 	char *type;
@@ -11,7 +11,7 @@ struct symtab {
 using namespace std;
 
 extern "C"{
-void yyerror(const char* message){ cerr << message << endl;}
+void yyerror(const char* message);
 extern int yylex(void);
 }
 
@@ -21,13 +21,16 @@ symtab *look_for_symbol(const char *str, const char *str2);
 
 %}
 
+
 %union{
 	struct symtab *symp;
 	struct symtab *opterminal;
 }
-%token<opterminal> PROGRAM BEGIN_T END IF THEN ELSE ENDIF FOR TO DOWNTO ENDFOR STEP WHILE ENDWHILE DECLARE AS INTEGER FLOAT    
+%token<opterminal> PROGRAM BEGIN_T END IF THEN ELSE ENDIF FOR TO DOWNTO ENDFOR STEP WHILE ENDWHILE DECLARE AS INTEGER FLOAT ASSIGN GE NE EQ LE JL JG   
 %token<symp> ID INT_LITERAL FLOAT_LITERAL STRING_LITERAL EXP_FLOAT_LITERAL
 %type<symp> declare_stmt var_list type expression term factor
+
+
 
 %%
 
@@ -58,6 +61,9 @@ declare_stmt: DECLARE var_list AS type
 				look_for_symbol(tmp, $4->name); // change type
 				
 				tmp = strtok(NULL, ",");
+                /*symtab* tmp_sym =  look_for_symbol(tmp, "");
+                cerr << tmp_sym->name;
+                cerr << tmp_sym->type;*/
 				if (tmp != NULL && tmp[0] >= '0' && tmp[0] <= '9') /*next is number => array */
 				{
 					result.back() = result.back() + "_array," + string(tmp);
@@ -71,12 +77,28 @@ declare_stmt: DECLARE var_list AS type
 var_list: var_list ',' ID '[' expression ']'
 		{
 			$$ = new symtab(); 
-			$$->name = strdup( (string($1->name) + "," + string($3->name) + "," + string($5->name) ).data() );
+            if( strcmp($5->type,"Integer") == 0 )
+            {
+                $$->name = strdup( (string($1->name) + "," + string($3->name) + "," + string($5->name) ).data() );
+            }
+            else
+            {
+                yyerror("array[N], N only accept a Integer");
+            }
+			
 		}
 	| ID '[' expression ']' 
 		{
 			$$ = new symtab();
-			$$->name = strdup( (string($1->name) + "," + string($3->name)).data() );
+            if( strcmp($3->type,"Integer") == 0 )
+            {
+                $$->name = strdup( (string($1->name) + "," + string($3->name)).data() );
+            }
+            else
+            {
+                yyerror("array[N], N only accept a Integer");
+            }
+			
 		}
 	| var_list ',' ID
 		{
@@ -119,6 +141,12 @@ int main() {
 	return 0;
 }	
 
+void yyerror(const char* message)
+{
+    cerr << "In line " << numline << " : " << message << endl;
+    exit(1);
+}
+
 symtab *look_for_symbol(const char *str, const char *str2) 
 {
 	struct symtab *sp;
@@ -126,12 +154,14 @@ symtab *look_for_symbol(const char *str, const char *str2)
 	{
 		if (sp->name && !strcmp(sp->name, str)) 
 		{
+            // change type
 			if ( strcmp(str2,"") != 0 ) 
 			{
 				sp->type = strdup(str2);
 			}
 			return sp;
 		}
+        // add new
 		if ( !sp->name ) 
 		{
 			sp->name = strdup(str);
