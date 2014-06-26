@@ -29,7 +29,7 @@ string IntToString(int &i);
 }
 %token<opterminal> PROGRAM BEGIN_T END IF THEN ELSE ENDIF FOR TO DOWNTO ENDFOR STEP WHILE ENDWHILE DECLARE AS INTEGER FLOAT ASSIGN GE NE EQ LE JL JG   
 %token<symp> ID INT_LITERAL FLOAT_LITERAL STRING_LITERAL EXP_FLOAT_LITERAL
-%type<symp> declare_stmt var_list type expression term factor
+%type<symp> declare_stmt var_list type expression term factor assign_stmt assigned_var
 
 
 
@@ -51,6 +51,7 @@ stmt_list: stmt
 	;
 
 stmt: declare_stmt ';'
+    | assign_stmt ';'	
 	;
 
 declare_stmt: DECLARE var_list AS type 
@@ -62,9 +63,6 @@ declare_stmt: DECLARE var_list AS type
 				look_for_symbol(tmp, $4->name); // change type
 				
 				tmp = strtok(NULL, ",");
-                /*symtab* tmp_sym =  look_for_symbol(tmp, "");
-                cerr << tmp_sym->name;
-                cerr << tmp_sym->type;*/
 				if (tmp != NULL && tmp[0] >= '0' && tmp[0] <= '9') /*next is number => array */
 				{
 					result.back() = result.back() + "_array," + string(tmp);
@@ -113,17 +111,56 @@ var_list: var_list ',' ID '[' expression ']'
 type: INTEGER  { $$ = $1; }
 	| FLOAT   { $$ = $1; }
 	;	
+
+assign_stmt:  assigned_var ASSIGN expression   
+                {
+                    symtab* pre_ID = look_for_symbol($1->name, $1->type);
+                    if( strcmp(pre_ID->type, "Integer") == 0 )
+                    {
+                        result.push_back("\tI_STORE " + string($3->name) + "," + string($1->name));
+                    }
+                    else if( strcmp(pre_ID->type, "Float") == 0 )
+                    {
+                        result.push_back("\tF_STORE " + string($3->name) + "," + string($1->name));
+                    } 
+                    else  
+                    {
+                        //cerr << "In assign_stmt... Something is wrong: assigned_var " << $1->name << " 's type is " << $1->type << endl;
+                        result.push_back("\tI_STORE " + string($3->name) + "," + string($1->name));
+                    } 
+                    $$ = $1;
+                }
+    ;
+
+assigned_var : ID 
+                {
+                    $$ = look_for_symbol($1->name, "");
+                }
+    |   ID '[' expression ']'
+                {
+                    $$ = new symtab();
+                    if( strcmp($3->type,"Integer") == 0 )
+                    {
+                        $$->type = look_for_symbol($1->name, "")->type;
+                        $$->name = strdup( (string($1->name)+"["+string($3->name)+"]").data() );
+                    }
+                    else
+                    {
+                        yyerror("array[N], N only accept a Integer");
+                    }
+                    
+                }
     
 expression:	expression '+' term 
             {
-                symtab* id = look_for_symbol($1->name,$1->type);
+                symtab* pre_ID = look_for_symbol($1->name, $1->type);
                 ++temp_variable_counter;
                 look_for_symbol( string("T&"+IntToString(temp_variable_counter)).data(), (const char*)$1->type);
-                if( strcmp(id->type,"Integer") == 0 ) 
+                if( strcmp(pre_ID->type, "Integer") == 0 ) 
                 {
                     result.push_back("\tI_ADD " + string($1->name) + "," + string($3->name) + ",T&" + IntToString(temp_variable_counter));
                 }
-                else if( strcmp(id->type,"Float") == 0 ) 
+                else if( strcmp(pre_ID->type, "Float") == 0 ) 
                 {
                     result.push_back("\tF_ADD " + string($1->name) + "," + string($3->name) + ",T&" + IntToString(temp_variable_counter));
                 }
@@ -137,14 +174,14 @@ expression:	expression '+' term
             }
 	|	expression '-' term 
             {
-                symtab* id = look_for_symbol($1->name,$1->type);
+                symtab* pre_ID = look_for_symbol($1->name, $1->type);
                 ++temp_variable_counter;
                 look_for_symbol( string("T&"+IntToString(temp_variable_counter)).data(), (const char*)$1->type);
-                if( strcmp(id->type,"Integer") == 0 )
+                if( strcmp(pre_ID->type, "Integer") == 0 )
                 {
                     result.push_back("\tI_SUB " + string($1->name) + "," + string($3->name) + ",T&" + IntToString(temp_variable_counter));
                 }
-                else if( strcmp(id->type,"Float") == 0 )
+                else if( strcmp(pre_ID->type, "Float") == 0 )
                 {
                     result.push_back("\tF_SUB " + string($1->name) + "," + string($3->name) + ",T&" + IntToString(temp_variable_counter));
                 }
@@ -164,14 +201,14 @@ expression:	expression '+' term
 
 term : term '*' factor 
         {
-            symtab* id = look_for_symbol($1->name,$1->type);
+            symtab* pre_ID = look_for_symbol($1->name, $1->type);
 			++temp_variable_counter;
 			look_for_symbol( string("T&"+IntToString(temp_variable_counter)).data() , (const char*)$1->type);
-			if( strcmp(id->type,"Integer") == 0 ) 
+			if( strcmp(pre_ID->type, "Integer") == 0 ) 
             {
 				result.push_back("\tI_MUL " + string($1->name) + "," + string($3->name) + ",T&" + IntToString(temp_variable_counter));
 			}
-			else if( strcmp(id->type,"Float") == 0 ) 
+			else if( strcmp(pre_ID->type, "Float") == 0 ) 
             {
 				result.push_back("\tF_MUL " + string($1->name) + "," + string($3->name) + ",T&" + IntToString(temp_variable_counter));
 			}
@@ -185,14 +222,14 @@ term : term '*' factor
         }
 	| term '/' factor
         {
-            symtab* id = look_for_symbol($1->name,$1->type);
+            symtab* pre_ID = look_for_symbol($1->name, $1->type);
 			++temp_variable_counter;
 			look_for_symbol(string("T&"+IntToString(temp_variable_counter)).data(), (const char*)$1->type);
-			if( strcmp(id->type,"Integer") == 0 ) 
+			if( strcmp(pre_ID->type, "Integer") == 0 ) 
             {
 				result.push_back("\tI_DIV " + string($1->name) + "," + string($3->name) + ",T&" + IntToString(temp_variable_counter));
 			}
-			else if( strcmp(id->type,"Float") == 0  )
+			else if( strcmp(pre_ID->type, "Float") == 0  )
             {
 				result.push_back("\tF_DIV " + string($1->name) + "," + string($3->name) + ",T&" + IntToString(temp_variable_counter));
 			}
@@ -225,15 +262,15 @@ factor: '-' factor
             }
 	|	ID  
             {
-                $$ = look_for_symbol($1->name,"");
+                $$ = look_for_symbol($1->name, "");
             }
 	|	INT_LITERAL 
             {
-                $$ = look_for_symbol($1->name,"Integer");
+                $$ = look_for_symbol($1->name, "Integer");
             }
 	|	FLOAT_LITERAL 	
             {
-                $$ = look_for_symbol($1->name,"Float");
+                $$ = look_for_symbol($1->name, "Float");
             }
 	;
 	
