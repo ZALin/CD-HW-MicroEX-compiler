@@ -16,24 +16,24 @@ Digit [0-9]
 
 %%
 
-[Pp][Rr][Oo][Gg][Rr][Aa][Mm]	{return PROGRAM;}
-[Bb][Ee][Gg][Ii][Nn]	{return BEGIN_T;}
-[Ee][Nn][Dd]	{return END;}
-[Ii][Ff]	{return IF;}
-[Tt][Hh][Ee][Nn]	{return THEN;}
-[Ee][Ll][Ss][Ee]	{return ELSE;}
-[Ee][Nn][Dd][Ii][Ff]	{return ENDIF;}
-[Ff][Oo][Rr]	{return FOR;}
-[Tt][Oo]	{return TO;}
-[Dd][Oo][Ww][Nn][Tt][Oo]	{return DOWNTO;}
-[Ee][Nn][Dd][Ff][Oo][Rr]	{return ENDFOR;}
-[Ss][Tt][Ee][Pp]	{return STEP;}
-[Ww][Hh][Ii][Ll][Ee]	{return WHILE;}
-[Ee][Nn][Dd][Ww][Hh][Ii][Ll][Ee]	{return ENDWHILE;}
-[Dd][Ee][Cc][Ll][Aa][Rr][Ee]	{return DECLARE;}
-[Aa][Ss]	{return AS;}
+[Pp][Rr][Oo][Gg][Rr][Aa][Mm]    {return PROGRAM;}
+[Bb][Ee][Gg][Ii][Nn]    {return BEGIN_T;}
+[Ee][Nn][Dd]    {return END;}
+[Ii][Ff]    {return IF;}
+[Tt][Hh][Ee][Nn]    {return THEN;}
+[Ee][Ll][Ss][Ee]    {return ELSE;}
+[Ee][Nn][Dd][Ii][Ff]    {return ENDIF;}
+[Ff][Oo][Rr]    {return FOR;}
+[Tt][Oo]    {return TO;}
+[Dd][Oo][Ww][Nn][Tt][Oo]    {return DOWNTO;}
+[Ee][Nn][Dd][Ff][Oo][Rr]    {return ENDFOR;}
+[Ss][Tt][Ee][Pp]    {return STEP;}
+[Ww][Hh][Ii][Ll][Ee]    {return WHILE;}
+[Ee][Nn][Dd][Ww][Hh][Ii][Ll][Ee]    {return ENDWHILE;}
+[Dd][Ee][Cc][Ll][Aa][Rr][Ee]    {return DECLARE;}
+[Aa][Ss]    {return AS;}
 [Ii][Nn][Tt][Ee][Gg][Ee][Rr] { yylval.opterminal = look_for_symbol("Integer",""); return INTEGER;}
-[Ff][Ll][Oo][Aa][Tt]	{yylval.opterminal = look_for_symbol("Float",""); return FLOAT;} 
+[Ff][Ll][Oo][Aa][Tt]    {yylval.opterminal = look_for_symbol("Float",""); return FLOAT;} 
 ":=" {return ASSIGN;}
 "!=" {return NE;}
 ">" {return JL;}
@@ -47,8 +47,8 @@ Digit [0-9]
 {Digit}+\.{Digit}*   |
 {Digit}*\.{Digit}*\+     {yylval.symp = look_for_symbol(yytext,"Float");return FLOAT_LITERAL;}
 {Digit}+\.{Digit}+[Ee][+-]?{Digit}+    {yylval.symp = look_for_symbol(yytext,"EXP_FLOAT_LITERAL");return EXP_FLOAT_LITERAL;}
-[\t\r ]+		/* ignore */ ;
+[\t\r ]+        /* ignore */ ;
 \%\%.*     /* ignore Comment => %% …….. \n */ ;
-\n	{numline++; }
-.	{return yytext[0];} /* something else */
+\n    {numline++; }
+.    {return yytext[0];} /* something else */
 %%
